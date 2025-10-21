@@ -8,13 +8,7 @@ import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 export const firebaseConfig = {
-  apiKey: "AIzaSyAUrp8hpxKwnvbjqgaW7zA97xFwXsA7grc",
-  authDomain: "g-remind-a20fa.firebaseapp.com",
-  projectId: "g-remind-a20fa",
-  storageBucket: "g-remind-a20fa.firebasestorage.app",
-  messagingSenderId: "1008254741219",
-  appId: "1:1008254741219:web:3451299bf1b0f6576ab3d6",
-  measurementId: "G-E0NNXYB83Q"
+  
 };
 
 // Step 2: Initialize Firebase
