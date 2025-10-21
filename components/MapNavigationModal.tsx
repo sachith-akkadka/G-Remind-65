@@ -1,45 +1,22 @@
 // components/MapNavigationModal.tsx
 // Full-screen map + Directions API route fetcher + simulated navigation (moving blue dot).
-// Drop this file into /components and import it from your TasksPage.
-//
-// Usage examples (apply these small edits in your page.tsx):
-// 1) Single-task Start (from TaskCard)
-//    setActiveTask(task);
-//    setIsMapVisible(true);
-//
-// 2) Multi-stop Start (from the "Start" button in page.tsx)
-//    // Build `points: { lat:number; lng:number; name?:string }[]` from tasksForActiveTab
-//    setPlannedRoute(points); // points must be ordered (origin should NOT be included)
-//    setIsMapVisible(true);
-//
-// Example render in page.tsx (place near bottom):
-// <MapNavigationModal
-//   visible={isMapVisible}
-//   onClose={() => setIsMapVisible(false)}
-//   origin={userLocation} // optional; if omitted we try to use device location
-//   destinations={plannedRoute} // array of { lat, lng, name } (one or many stops)
-//   optimizeRoute={true} // optional - attempt to optimize waypoint order (uses Directions API optimize)
-///>
+// Tries Google Directions -> OSRM fallback -> simulated interpolation (guaranteed UI route).
+// Usage: same as before; pass origin (optional) and destinations (array of {lat,lng,name}).
 
 import Constants from "expo-constants";
 import * as Location from "expo-location";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import MapView, {
-    AnimatedRegion,
-    Marker,
-    PROVIDER_GOOGLE,
-    Polyline
-} from "react-native-maps";
+import MapView, { AnimatedRegion, Marker, PROVIDER_GOOGLE, Polyline } from "react-native-maps";
 
 // Polyline decoder - Google encoded polyline -> array of { latitude, longitude }
 function decodePolyline(encoded: string) {
@@ -87,7 +64,13 @@ type Props = {
   optimizeRoute?: boolean; // whether to ask Directions API to optimize waypoint order
 };
 
-export default function MapNavigationModal({ visible, onClose, origin, destinations, optimizeRoute = true }: Props) {
+export default function MapNavigationModal({
+  visible,
+  onClose,
+  origin,
+  destinations,
+  optimizeRoute = true,
+}: Props) {
   const mapRef = useRef<MapView | null>(null);
   const markerRef = useRef<any>(null);
   const [loading, setLoading] = useState(false);
@@ -95,7 +78,7 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
   const [distanceText, setDistanceText] = useState<string | null>(null);
   const [durationText, setDurationText] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(true);
-  const [speed, setSpeed] = useState(1); // multiplier for simulation speed
+  const [speed] = useState(1); // multiplier for simulation speed (exposed later if needed)
 
   const [deviceLocation, setDeviceLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -105,17 +88,25 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
     animRegion.current = null; // reset on modal open/close
   }, [visible]);
 
-  const API_KEY = (process.env.EXPO_PUBLIC_MAPS_API_KEY as string) || (Constants?.expoConfig?.extra as any)?.EXPO_PUBLIC_MAPS_API_KEY || "";
+  const API_KEY =
+    (process.env.EXPO_PUBLIC_MAPS_API_KEY as string) ||
+    (Constants?.expoConfig?.extra as any)?.EXPO_PUBLIC_MAPS_API_KEY ||
+    "";
+
   if (!API_KEY) {
-    // We'll still render but Directions fetch will fail; user should set env var
-    console.warn("MapNavigationModal: EXPO_PUBLIC_MAPS_API_KEY not set. Put it in your .env and rebuild.");
+    console.warn(
+      "MapNavigationModal: EXPO_PUBLIC_MAPS_API_KEY not set. Put it in your .env and ensure it's exposed to the app (app.config.js / expo-constants)."
+    );
   }
 
   // Determine origin: prop origin, else device location
   useEffect(() => {
     let sub: any = null;
     (async () => {
-      if (origin) return setDeviceLocation(origin);
+      if (origin) {
+        setDeviceLocation(origin);
+        return;
+      }
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
@@ -174,50 +165,137 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
 
         // waypoints: all destinations except final one (and except when only one dest)
         const intermediate = destinations.slice(0, -1);
+
+        // Cap waypoints to a safe limit (Directions API has limits; avoid too-long strings)
+        const MAX_WAYPOINTS = 20; // keep under Google's max (23) to be safe
+        const intermediateCapped = intermediate.slice(0, MAX_WAYPOINTS);
+
         let waypointsParam = "";
-        if (intermediate.length > 0) {
-          // build waypoints string
-          const pts = intermediate.map((p) => `${p.lat},${p.lng}`).join("|");
+        if (intermediateCapped.length > 0) {
+          // build waypoints string (lat,lng|lat,lng|...) then encodeURIComponent the whole
+          const pts = intermediateCapped.map((p) => `${p.lat},${p.lng}`).join("|");
           if (optimizeRoute) {
-            waypointsParam = `&waypoints=optimize:true|${pts}`;
+            const raw = `optimize:true|${pts}`;
+            waypointsParam = `&waypoints=${encodeURIComponent(raw)}`;
           } else {
-            waypointsParam = `&waypoints=${pts}`;
+            waypointsParam = `&waypoints=${encodeURIComponent(pts)}`;
           }
         }
 
-        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destinationParam)}${waypointsParam}&mode=driving&key=${API_KEY}`;
+        // Build Google Directions URL
+        const googleUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(
+          originParam
+        )}&destination=${encodeURIComponent(destinationParam)}${waypointsParam}&mode=driving&key=${API_KEY}`;
 
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Directions API ${res.status}`);
-        const data = await res.json();
-        if (!data || data.status !== "OK" || !data.routes || data.routes.length === 0) {
-          console.warn("Directions response:", data);
-          Alert.alert("Route not found", "Directions API could not find a route.");
-          setLoading(false);
-          return;
+        // ATTEMPT 1: Google Directions
+        let usedGoogle = false;
+        try {
+          console.log("Directions URL:", googleUrl);
+          const res = await fetch(googleUrl);
+          // Even if res.ok true, the JSON may still contain status != OK
+          const data = await res.json();
+          console.log("Google Directions response:", data);
+
+          if (data && data.status === "OK" && data.routes && data.routes.length > 0) {
+            usedGoogle = true;
+            const route = data.routes[0];
+            const overview = route.overview_polyline?.points;
+            const coords = decodePolyline(overview || "");
+            setRouteCoords(coords);
+
+            // set summary info
+            if (route.legs && route.legs.length > 0) {
+              let totalDist = 0;
+              let totalDur = 0;
+              route.legs.forEach((leg: any) => {
+                totalDist += leg.distance?.value || 0;
+                totalDur += leg.duration?.value || 0;
+              });
+              setDistanceText(`${(totalDist / 1000).toFixed(1)} km`);
+              setDurationText(`${Math.round(totalDur / 60)} min`);
+            }
+          } else {
+            console.warn("Google Directions not OK:", data?.status, data?.error_message);
+          }
+        } catch (gErr) {
+          console.warn("Google Directions fetch/parsing failed:", gErr);
         }
 
-        const route = data.routes[0];
-        // if optimize:true, Google may return waypoint_order which gives the new order for intermediate stops
-        const overview = route.overview_polyline?.points;
-        const coords = decodePolyline(overview || "");
-        setRouteCoords(coords);
+        // If Google didn't work, try OSRM public server as a fallback (dev only)
+        if (!usedGoogle) {
+          console.log("Trying OSRM fallback...");
+          try {
+            // Build OSRM coordinates string: lon,lat;lon,lat;...
+            const pointsForOSRM: string[] = [];
+            pointsForOSRM.push(`${from.lng},${from.lat}`);
+            // include all intermediates (use full 'intermediate' not just capped - but cap to reasonable)
+            const osrmIntermediates = intermediate.slice(0, 50); // avoid extremely long URLs
+            osrmIntermediates.forEach((p) => pointsForOSRM.push(`${p.lng},${p.lat}`));
+            pointsForOSRM.push(`${destPoint.lng},${destPoint.lat}`);
 
-        // set summary info
-        if (route.legs && route.legs.length > 0) {
-          let totalDist = 0;
-          let totalDur = 0;
-          route.legs.forEach((leg: any) => {
-            totalDist += (leg.distance?.value || 0);
-            totalDur += (leg.duration?.value || 0);
-          });
-          setDistanceText(`${(totalDist / 1000).toFixed(1)} km`);
-          setDurationText(`${Math.round(totalDur / 60)} min`);
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pointsForOSRM.join(
+              ";"
+            )}?overview=full&geometries=geojson`;
+
+            console.log("OSRM URL:", osrmUrl);
+            const r2 = await fetch(osrmUrl);
+            const osrmJson = await r2.json();
+            console.log("OSRM response:", osrmJson);
+
+            if (osrmJson && osrmJson.routes && osrmJson.routes.length > 0 && osrmJson.routes[0].geometry) {
+              const coords = (osrmJson.routes[0].geometry.coordinates as [number, number][]).map(([lon, lat]) => ({
+                latitude: lat,
+                longitude: lon,
+              }));
+              setRouteCoords(coords);
+
+              // OSRM provides distance (meters) and duration (seconds)
+              const leg = osrmJson.routes[0];
+              if (leg.distance) setDistanceText(`${(leg.distance / 1000).toFixed(1)} km`);
+              if (leg.duration) setDurationText(`${Math.round(leg.duration / 60)} min`);
+            } else {
+              throw new Error("OSRM returned no route");
+            }
+          } catch (osrmErr) {
+            console.warn("OSRM fallback failed:", osrmErr);
+
+            // Final fallback: simulated interpolation across all stops so the UI still works
+            console.log("Falling back to simulated interpolated polyline...");
+            try {
+              const interp: { latitude: number; longitude: number }[] = [];
+
+              // Build sequence: from -> each intermediate -> destPoint
+              const sequence = [from, ...intermediate, destPoint];
+
+              // interpolate between consecutive points with N steps
+              const stepsPerLeg = 20;
+              for (let sIdx = 0; sIdx < sequence.length - 1; sIdx++) {
+                const a = sequence[sIdx];
+                const b = sequence[sIdx + 1];
+                for (let i = 0; i <= stepsPerLeg; i++) {
+                  const t = i / stepsPerLeg;
+                  interp.push({
+                    latitude: a.lat + (b.lat - a.lat) * t,
+                    longitude: a.lng + (b.lng - a.lng) * t,
+                  });
+                }
+              }
+
+              setRouteCoords(interp);
+              setDistanceText(null);
+              setDurationText(null);
+            } catch (finalErr) {
+              console.error("Simulated fallback failed (unexpected):", finalErr);
+              Alert.alert("Routing error", "Could not compute a route. Try again later.");
+              setLoading(false);
+              return;
+            }
+          }
         }
 
         // prepare animation region for marker start
-        if (coords && coords.length > 0) {
-          const start = coords[0];
+        if (routeCoords && routeCoords.length > 0) {
+          const start = routeCoords[0];
           // AnimatedRegion compatible object
           animRegion.current = new AnimatedRegion({
             latitude: start.latitude,
@@ -226,7 +304,7 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
             longitudeDelta: 0,
           } as any);
 
-          // give map time to layout
+          // give map time to layout then animate to start
           setTimeout(() => {
             try {
               mapRef.current?.animateToRegion?.({
@@ -238,12 +316,19 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
             } catch (e) {}
           }, 250);
 
-          // start simulation
-          startSimulation(coords);
+          // start simulation (use the final routeCoords)
+          startSimulation(routeCoords);
+        } else {
+          // routeCoords might have been set asynchronously above; if not, check again after small wait
+          if (!animRegion.current && routeCoords.length === 0) {
+            // nothing to animate
+            console.warn("No route coordinates available after attempts.");
+            Alert.alert("Route not found", "Could not determine a route for the requested stops.");
+          }
         }
       } catch (err: any) {
-        console.error("fetch directions failed:", err);
-        Alert.alert("Routing error", err?.message || "Failed to fetch route from Directions API.");
+        console.error("fetch directions failed (outer):", err);
+        Alert.alert("Routing error", err?.message || "Failed to fetch route.");
       } finally {
         setLoading(false);
       }
@@ -290,12 +375,14 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
       // animate marker using AnimatedRegion if available
       try {
         if (animRegion.current) {
-          animRegion.current.timing({
-            latitude: next.latitude,
-            longitude: next.longitude,
-            duration: Math.max(300, baseInterval / Math.max(0.1, speed)),
-            useNativeDriver: false,
-          }).start();
+          animRegion.current
+            .timing({
+              latitude: next.latitude,
+              longitude: next.longitude,
+              duration: Math.max(300, baseInterval / Math.max(0.1, speed)),
+              useNativeDriver: false,
+            })
+            .start();
         }
       } catch (e) {
         // fallback to camera-only animation
@@ -303,7 +390,10 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
 
       // center map on next
       try {
-        mapRef.current?.animateCamera?.({ center: { latitude: next.latitude, longitude: next.longitude }, zoom: 16, pitch: 45 }, { duration: Math.max(300, baseInterval / Math.max(0.1, speed)) });
+        mapRef.current?.animateCamera?.(
+          { center: { latitude: next.latitude, longitude: next.longitude }, zoom: 16, pitch: 45 },
+          { duration: Math.max(300, baseInterval / Math.max(0.1, speed)) }
+        );
       } catch (e) {}
 
       simRef.current.idx = i + 1;
@@ -319,7 +409,13 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
           <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
             {distanceText ? <Text style={styles.infoText}>{distanceText}</Text> : null}
             {durationText ? <Text style={styles.infoText}>{durationText}</Text> : null}
-            <TouchableOpacity onPress={() => { stopSimulation(); onClose(); }} style={styles.closeBtn}>
+            <TouchableOpacity
+              onPress={() => {
+                stopSimulation();
+                onClose();
+              }}
+              style={styles.closeBtn}
+            >
               <Text style={styles.closeTxt}>End</Text>
             </TouchableOpacity>
           </View>
@@ -342,8 +438,8 @@ export default function MapNavigationModal({ visible, onClose, origin, destinati
             followsUserLocation={false}
             toolbarEnabled={false}
             initialRegion={{
-              latitude: deviceLocation?.lat ?? (destinations[0]?.lat ?? 12.97),
-              longitude: deviceLocation?.lng ?? (destinations[0]?.lng ?? 77.59),
+              latitude: deviceLocation?.lat ?? destinations[0]?.lat ?? 12.97,
+              longitude: deviceLocation?.lng ?? destinations[0]?.lng ?? 77.59,
               latitudeDelta: 0.05,
               longitudeDelta: 0.05,
             }}
