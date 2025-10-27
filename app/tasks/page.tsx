@@ -546,7 +546,7 @@ export default function TasksPage() {
   // --------------------------------------------
   const auth = getAuth();
   const currentUser = auth.currentUser;
-  const rawName = currentUser?.displayName || "Shrividya";
+  const rawName = currentUser?.displayName || "Sachith Akkadka";
   const initials = rawName
     .split(" ")
     .filter(Boolean)
@@ -777,7 +777,7 @@ if (activeScreen === "help") return <Help onBack={() => setActiveScreen("main")}
         visible={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
         initialTask={editingTask}
-        userName={"Shrividya"}
+        userName={currentUser?.displayName || "Sachith Akkadka"}
         onSubmitted={(saved) => upsertTaskFromSheet(saved)}
       />
     </SafeAreaView>
