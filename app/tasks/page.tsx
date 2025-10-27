@@ -616,12 +616,18 @@ if (activeScreen === "help") return <Help onBack={() => setActiveScreen("main")}
 
             <TouchableOpacity
               style={[styles.menuItem, styles.logoutItem]}
-              onPress={() => {
+              onPress={async () => {
+              try {
                 setMenuVisible(false);
-                Alert.alert(
-                  "Logout",
-                  "Perform logout (implement real logout)."
-                );
+                const auth = getAuth();
+                const { signOut } = await import("firebase/auth");
+                await signOut(auth);
+                setTasks([]);
+                Alert.alert("Logged out", "You have been logged out.");
+              } catch (err) {
+                console.error("Logout failed", err);
+                Alert.alert("Logout failed", "Please try again.");
+              }
               }}
             >
               <LogOut size={20} color="#ff4d4d" style={{ marginRight: 10 }} />
