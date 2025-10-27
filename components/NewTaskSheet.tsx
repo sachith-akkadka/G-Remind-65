@@ -38,6 +38,8 @@ import MapView, {
   Marker,
   PROVIDER_GOOGLE,
 } from "react-native-maps";
+import { getAuth } from "firebase/auth";
+
 
 // Notification handler (keeps this app-friendly)
 Notifications.setNotificationHandler({
@@ -616,21 +618,28 @@ const NewTaskSheet: React.FC<Props> = ({
       } catch (e) {
         console.warn("suggestTaskCategory failed:", e);
       }
+      const auth = getAuth();
+const user = auth.currentUser;
 
-      const payload: FirestoreTaskLike = {
-        title: title.trim(),
-        description: description.trim() ? description.trim() : null,
-        dueDate: when.toISOString(),
-        store: finalStore ? finalStore : null,
-        storeName: finalStoreName ? finalStoreName : null,
-        status: initialTask ? newStatus : "pending",
-        category,
-        priority,
-        recurring:
-          recurring === "none"
-            ? null
-            : (recurring as Exclude<Recurring, "none">),
-      };
+if (!user) {
+  Alert.alert("Please log in", "You must be signed in to create tasks.");
+  setSubmitting(false);
+  return;
+}
+
+      const payload: FirestoreTaskLike & { userId: string; userEmail: string } = {
+  title: title.trim(),
+  description: description.trim() ? description.trim() : null,
+  dueDate: when.toISOString(),
+  store: finalStore ? finalStore : null,
+  storeName: finalStoreName ? finalStoreName : null,
+  status: initialTask ? newStatus : "pending",
+  category,
+  priority,
+  recurring: recurring === "none" ? null : recurring as Exclude<Recurring, "none">,
+  userId: user.uid,
+  userEmail: user.email || "unknown",
+};
 
       let saved;
       if (initialTask?.id) {

@@ -14,13 +14,13 @@ import { Task } from "./page";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import * as Haptics from "expo-haptics";
 import { RectButton } from "react-native-gesture-handler";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 type Props = {
   task: Task;
   onEdit: (t: Task) => void;
   onDelete: (id: string) => void;
   onMarkDone: (id: string) => void;
-  // can return a Promise (page.tsx's handler is async) — we await it to show a spinner
   onStartNavigation: (t: Task) => Promise<void> | void;
   onReschedule: (t: Task) => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
@@ -100,32 +100,38 @@ export default function TaskCard({
     }
   }
 
-  // --- Swipe Actions ---
-  const renderLeftActions = () => (
-    <RectButton
-      style={[styles.swipeAction, { backgroundColor: "#007bff" }]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onEdit(task);
-      }}
-    >
-      <Text style={styles.swipeText}>Edit</Text>
-    </RectButton>
+  // ✅ Slide-in Left Action
+  const renderLeftActions = (progress: any, dragX: any) => (
+    <View style={styles.actionContainer}>
+      <RectButton
+        style={[styles.leftAction, styles.actionButton]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onEdit(task);
+        }}
+      >
+        <Ionicons name="create-outline" size={24} color="#fff" />
+        <Text style={styles.actionText}>Edit</Text>
+      </RectButton>
+    </View>
   );
 
-  const renderRightActions = () => (
-    <RectButton
-      style={[styles.swipeAction, { backgroundColor: "#ff3b30" }]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onDelete(task.id);
-      }}
-    >
-      <Text style={styles.swipeText}>Delete</Text>
-    </RectButton>
+  // ✅ Slide-in Right Action
+  const renderRightActions = (progress: any, dragX: any) => (
+    <View style={[styles.actionContainer, { justifyContent: "flex-end" }]}>
+      <RectButton
+        style={[styles.rightAction, styles.actionButton]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onDelete(task.id);
+        }}
+      >
+        <MaterialIcons name="delete-outline" size={24} color="#fff" />
+        <Text style={styles.actionText}>Delete</Text>
+      </RectButton>
+    </View>
   );
 
-  // Start button handler: await the parent's async resolver so we can show spinner
   async function handleStartPress() {
     if (starting) return;
     try {
@@ -140,95 +146,138 @@ export default function TaskCard({
   }
 
   return (
-    <Swipeable
-      renderLeftActions={renderLeftActions}
-      renderRightActions={renderRightActions}
-      overshootLeft={false}
-      overshootRight={false}
-      onSwipeableLeftOpen={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onEdit(task);
-      }}
-      onSwipeableRightOpen={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onDelete(task.id);
-      }}
-    >
-      <View style={[styles.card, { borderLeftColor: leftBorderColor }]}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{task.title}</Text>
-        </View>
+    <View style={styles.wrapper}>
+      <Swipeable
+        renderLeftActions={renderLeftActions}
+        renderRightActions={renderRightActions}
+        overshootLeft={false}
+        overshootRight={false}
+        friction={1}
+        leftThreshold={20} // ✅ Quick activation
+        rightThreshold={20}
+        onSwipeableLeftOpen={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onEdit(task);
+        }}
+        onSwipeableRightOpen={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onDelete(task.id);
+        }}
+      >
+        <View style={[styles.card, { borderLeftColor: leftBorderColor }]}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{task.title}</Text>
+          </View>
 
-        <View style={styles.metaRow}>
-          <Text style={styles.badge}>{task.status}</Text>
-          <Text style={[styles.badge, { marginLeft: 8 }]}>{task.category}</Text>
-        </View>
+          <View style={styles.metaRow}>
+            <Text style={styles.badge}>{task.status}</Text>
+            <Text style={[styles.badge, { marginLeft: 8 }]}>{task.category}</Text>
+          </View>
 
-        <Text style={styles.detail}>Due: {dueText}</Text>
-        {task.storeName ? <Text style={styles.detail}>📍 {task.storeName}</Text> : null}
+          <Text style={styles.detail}>Due: {dueText}</Text>
+          {task.storeName ? <Text style={styles.detail}>📍 {task.storeName}</Text> : null}
 
-        {parsedSubtasks.length > 0 && (
-          <View style={{ marginTop: 8 }}>
-            <TouchableOpacity onPress={() => setShowSubtasks((s) => !s)}>
-              <Text style={{ color: "#cfe0ff", fontWeight: "600" }}>{showSubtasks ? "Hide" : "Show"} subtasks</Text>
+          {parsedSubtasks.length > 0 && (
+            <View style={{ marginTop: 8 }}>
+              <TouchableOpacity onPress={() => setShowSubtasks((s) => !s)}>
+                <Text style={{ color: "#cfe0ff", fontWeight: "600" }}>
+                  {showSubtasks ? "Hide" : "Show"} subtasks
+                </Text>
+              </TouchableOpacity>
+              {showSubtasks && (
+                <FlatList
+                  style={{ marginTop: 8 }}
+                  data={parsedSubtasks}
+                  keyExtractor={(s) => s.id}
+                  renderItem={({ item }) => (
+                    <View style={styles.subtaskRow}>
+                      <Switch
+                        value={item.completed}
+                        onValueChange={() => toggleSubtaskCompleted(item.id)}
+                      />
+                      <Text
+                        style={[
+                          styles.subtaskTxt,
+                          item.completed && {
+                            textDecorationLine: "line-through",
+                            color: "#aaa",
+                          },
+                        ]}
+                      >
+                        {item.title}
+                      </Text>
+                    </View>
+                  )}
+                />
+              )}
+            </View>
+          )}
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.smallBtn, starting ? { opacity: 0.7 } : undefined]}
+              onPress={handleStartPress}
+              disabled={starting}
+            >
+              {starting ? <ActivityIndicator color="#fff" /> : <Text style={styles.smallBtnTxt}>Start</Text>}
             </TouchableOpacity>
-            {showSubtasks && (
-              <FlatList
-                style={{ marginTop: 8 }}
-                data={parsedSubtasks}
-                keyExtractor={(s) => s.id}
-                renderItem={({ item }) => (
-                  <View style={styles.subtaskRow}>
-                    <Switch value={item.completed} onValueChange={() => toggleSubtaskCompleted(item.id)} />
-                    <Text
-                      style={[
-                        styles.subtaskTxt,
-                        item.completed && {
-                          textDecorationLine: "line-through",
-                          color: "#aaa",
-                        },
-                      ]}
-                    >
-                      {item.title}
-                    </Text>
-                  </View>
-                )}
-              />
+
+            {task.status === "missed" && (
+              <TouchableOpacity
+                style={[styles.smallBtn, { backgroundColor: "#f0a500" }]}
+                onPress={() => onReschedule(task)}
+              >
+                <Text style={styles.smallBtnTxt}>Reschedule</Text>
+              </TouchableOpacity>
+            )}
+
+            {task.status !== "completed" && (
+              <TouchableOpacity
+                style={[styles.smallBtn, { backgroundColor: "#3bbf73" }]}
+                onPress={() => onMarkDone(task.id)}
+              >
+                <Text style={styles.smallBtnTxt}>Done</Text>
+              </TouchableOpacity>
             )}
           </View>
-        )}
-
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.smallBtn, starting ? { opacity: 0.7 } : undefined]}
-            onPress={handleStartPress}
-            disabled={starting}
-          >
-            {starting ? <ActivityIndicator color="#fff" /> : <Text style={styles.smallBtnTxt}>Start</Text>}
-          </TouchableOpacity>
-
-          {task.status === "missed" && (
-            <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#f0a500" }]} onPress={() => onReschedule(task)}>
-              <Text style={styles.smallBtnTxt}>Reschedule</Text>
-            </TouchableOpacity>
-          )}
-
-          {task.status !== "completed" && (
-            <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#3bbf73" }]} onPress={() => onMarkDone(task.id)}>
-              <Text style={styles.smallBtnTxt}>Done</Text>
-            </TouchableOpacity>
-          )}
         </View>
-      </View>
-    </Swipeable>
+      </Swipeable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "rgba(255,255,255,0.04)",
+  wrapper: {
+    overflow: "hidden",
     marginHorizontal: 12,
     marginVertical: 8,
+    borderRadius: 12,
+  },
+  actionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  actionButton: {
+    width: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 10,
+  },
+  leftAction: {
+    backgroundColor: "#007bff",
+  },
+  rightAction: {
+    backgroundColor: "#ff3b30",
+  },
+  actionText: {
+    color: "#fff",
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: "700",
+  },
+  card: {
+    backgroundColor: "rgba(255,255,255,0.04)",
     padding: 12,
     borderRadius: 12,
     borderLeftWidth: 6,
@@ -255,15 +304,4 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   smallBtnTxt: { color: "#fff", fontWeight: "600" },
-  swipeAction: {
-    justifyContent: "center",
-    alignItems: "flex-start",
-    paddingHorizontal: 20,
-    flex: 1,
-  },
-  swipeText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
 });

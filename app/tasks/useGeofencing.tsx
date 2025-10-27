@@ -1,7 +1,7 @@
 // components/tasks/useGeofencing.tsx
-import { useEffect, useRef } from "react";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
+import { useEffect, useRef } from "react";
 import { Task } from "../../lib/types"; // ✅ fixed path
 
 // Distance threshold (in meters) for "arrival" at a task location
@@ -54,16 +54,28 @@ export function useGeofencing(tasks: Task[]) {
           // Entered proximity
           activeProximity.current[task.id] = true;
           sendNotification(
-            `You're near "${task.title}"`,
-            `Don't forget to complete this task at ${task.storeName || "here"}.`
+            `You're near "${task.storeName || "here"}"`,
+            `Don't forget to complete the task ${task.title || ""}.`
+  //           `You left "${task.storeName}" Did you complete the task "${task.title}"?`,
+  // `✅ Yes      ❌ No`
           );
         } else if (wasInside && !isInside) {
           // Left proximity
           activeProximity.current[task.id] = false;
-          sendNotification(
-            `Left "${task.title}" area`,
-            `Did you complete it? If not, consider rescheduling.`
-          );
+            // Show interactive notification with Yes/No buttons
+            Notifications.setNotificationCategoryAsync("TASK_LEFT", [
+            { identifier: "YES", buttonTitle: "Yes", options: { opensAppToForeground: true } },
+            { identifier: "NO", buttonTitle: "No", options: { opensAppToForeground: true } },
+            ]);
+
+            Notifications.scheduleNotificationAsync({
+            content: {
+              title: `Left "${task.title}" area`,
+              body: "Did you complete it?",
+              categoryIdentifier: "TASK_LEFT",
+            },
+            trigger: null,
+            });
         }
       });
     }
