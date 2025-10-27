@@ -1,26 +1,36 @@
 import React from "react";
-import { View, Text, ScrollView, Image, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  StyleSheet,
+  Platform,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { Card, Button, Provider as PaperProvider } from "react-native-paper";
-import { MapPin, Navigation, Zap, BrainCircuit, Star } from "lucide-react-native";
+import { MapPin, BrainCircuit, Zap } from "lucide-react-native";
 
 function HomePageContent() {
   return (
-    <LinearGradient
-      colors={["#6b46c1", "#0ea5e9", "#ffffff"]}
-      style={{ flex: 1 }}
-    >
+    <LinearGradient colors={["#0b1020", "#10172a", "#1e293b"]} style={styles.container}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logoText}>G-Remind</Text>
           <View style={styles.nav}>
             <Link href="/login" asChild>
-              <Button mode="text">Log In</Button>
+              <Button mode="text" textColor="#9aa1ff">Log In</Button>
             </Link>
             <Link href="/signup" asChild>
-              <Button mode="contained">Sign Up</Button>
+              <Button
+                mode="contained"
+                buttonColor="#2f7dfe"
+                textColor="#fff"
+              >
+                Sign Up
+              </Button>
             </Link>
           </View>
         </View>
@@ -28,125 +38,73 @@ function HomePageContent() {
         {/* Hero Section */}
         <View style={styles.section}>
           <Text style={styles.heroTitle}>
-            Never forget a task at a location again.
+            Never forget a task again.
           </Text>
           <Text style={styles.heroSubtitle}>
-            G-Remind is your intelligent assistant for location-based tasks. Set
-            reminders for places, and get notified when you're nearby.
+            Smart, location-based reminders that alert you when you're nearby.
           </Text>
           <Link href="/login" asChild>
-            <Button mode="contained" style={{ marginTop: 16 }}>
-              Get Started for Free
+            <Button
+              mode="contained"
+              buttonColor="#4a6dff"
+              style={styles.startBtn}
+              labelStyle={styles.startBtnTxt}
+            >
+              Get Started
             </Button>
           </Link>
         </View>
 
         {/* Features */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            A smarter way to manage your errands
-          </Text>
+          <Text style={styles.sectionTitle}>Smarter Task Management</Text>
           <View style={styles.grid}>
             <FeatureCard
-              icon={<MapPin color="#6b46c1" size={32} />}
-              title="Location-Based Tasks"
-              description="Create tasks and link them to specific locations. Get reminders when you're in the vicinity."
+              icon={<MapPin color="#4a6dff" size={28} />}
+              title="Location-Based"
+              description="Create reminders linked to real-world places."
             />
             <FeatureCard
-              icon={<BrainCircuit color="#6b46c1" size={32} />}
-              title="AI Location Suggestions"
-              description="Start typing and our AI will suggest relevant locations, making task creation faster."
+              icon={<BrainCircuit color="#4a6dff" size={28} />}
+              title="AI-Smart Suggestions"
+              description="Auto-suggests relevant spots for your tasks."
             />
             <FeatureCard
-              icon={<Navigation color="#6b46c1" size={32} />}
-              title="Multi-Stop Navigation"
-              description="Plan your route efficiently with optimized multi-stop routing."
-            />
-            <FeatureCard
-              icon={<Zap color="#6b46c1" size={32} />}
-              title="Smart Task Management"
-              description="Organize tasks with categories, due dates, and priorities."
-            />
-          </View>
-        </View>
-
-        {/* How It Works */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>How It Works</Text>
-          <View style={styles.grid}>
-            <HowItWorksStep
-              step="1"
-              title="Create Your Task"
-              description="Quickly add a task with AI-powered suggestions."
-            />
-            <HowItWorksStep
-              step="2"
-              title="Tag a Location"
-              description="Link your task to a specific place."
-            />
-            <HowItWorksStep
-              step="3"
-              title="Get Smart Reminders"
-              description="Receive a notification right when you arrive."
+              icon={<Zap color="#4a6dff" size={28} />}
+              title="Stay Productive"
+              description="Streamlined, intuitive, and built for daily use."
             />
           </View>
         </View>
 
         {/* App Preview */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Designed for life on the go</Text>
           <Image
-            source={{ uri: "https://placehold.co/600x400.png" }}
-            style={styles.image}
-          />
-          <Image
-            source={{ uri: "https://placehold.co/600x400.png" }}
+            source={{ uri: "https://placehold.co/600x400/10172a/9aa1ff?text=App+Preview" }}
             style={styles.image}
           />
           <Text style={styles.paragraph}>
-            G-Remind’s clean, intuitive interface helps you manage location-based
-            tasks without clutter.
+            Manage your errands, plan routes, and get reminders when it matters.
           </Text>
-        </View>
-
-        {/* Testimonials */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Loved by users everywhere</Text>
-          <View style={styles.grid}>
-            <TestimonialCard
-              quote="I used to forget dry cleaning. G-Remind is a lifesaver!"
-              author="Sarah J."
-            />
-            <TestimonialCard
-              quote="Multi-stop navigation plans my errands in seconds."
-              author="Mike R."
-            />
-            <TestimonialCard
-              quote="Finally, a to-do app that fits my lifestyle!"
-              author="Alex D."
-            />
-          </View>
         </View>
 
         {/* CTA */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Ready to take control of your tasks?
-          </Text>
-          <Text style={styles.paragraph}>
-            Sign up for free and start organizing your life, one location at a
-            time.
-          </Text>
-          <Link href="/login" asChild>
-            <Button mode="contained" style={{ marginTop: 16 }}>
-              Get Started Now
+          <Text style={styles.sectionTitle}>Start organizing smarter.</Text>
+          <Link href="/signup" asChild>
+            <Button
+              mode="contained"
+              buttonColor="#2f7dfe"
+              style={{ marginTop: 16 }}
+            >
+              Create a Free Account
             </Button>
           </Link>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={{ color: "#888" }}>
+          <Text style={{ color: "#9aa1ff" }}>
             © {new Date().getFullYear()} G-Remind. All rights reserved.
           </Text>
         </View>
@@ -167,50 +125,10 @@ function FeatureCard({
 }) {
   return (
     <Card style={styles.card}>
-      <Card.Content>
-        <View style={{ alignItems: "center", marginBottom: 8 }}>{icon}</View>
+      <Card.Content style={{ alignItems: "center" }}>
+        {icon}
         <Text style={styles.cardTitle}>{title}</Text>
         <Text style={styles.cardDesc}>{description}</Text>
-      </Card.Content>
-    </Card>
-  );
-}
-
-function HowItWorksStep({
-  step,
-  title,
-  description,
-}: {
-  step: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Text style={styles.stepNumber}>{step}</Text>
-        <Text style={styles.cardTitle}>{title}</Text>
-        <Text style={styles.cardDesc}>{description}</Text>
-      </Card.Content>
-    </Card>
-  );
-}
-
-function TestimonialCard({ quote, author }: { quote: string; author: string }) {
-  return (
-    <Card style={styles.card}>
-      <Card.Content>
-        <View style={{ flexDirection: "row", marginBottom: 4 }}>
-          {[...Array(5)].map((_, i) => (
-            <Star key={i} size={20} color="#facc15" fill="#facc15" />
-          ))}
-        </View>
-        <Text style={{ fontStyle: "italic", marginBottom: 8 }}>
-          "{quote}"
-        </Text>
-        <Text style={{ fontWeight: "600", textAlign: "right" }}>
-          - {author}
-        </Text>
       </Card.Content>
     </Card>
   );
@@ -225,49 +143,55 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  // 🌙 Dark theme base
+  container: { flex: 1, backgroundColor: "#0b1020" },
   header: {
     height: 70,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(255,255,255,0.8)",
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
   logoText: {
     fontSize: 22,
     fontWeight: "700",
+    color: "#fff",
   },
   nav: {
     flexDirection: "row",
     gap: 8,
   },
-  section: {
-    padding: 24,
-    alignItems: "center",
-  },
+
+  // Sections
+  section: { padding: 24, alignItems: "center" },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
+    color: "#fff",
     textAlign: "center",
   },
   heroSubtitle: {
-    marginTop: 12,
+    marginTop: 8,
     fontSize: 16,
+    color: "#9aa1ff",
     textAlign: "center",
-    color: "#666",
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
+    color: "#fff",
     marginBottom: 12,
     textAlign: "center",
   },
   paragraph: {
-    fontSize: 16,
+    fontSize: 15,
     textAlign: "center",
-    color: "#666",
+    color: "#9aa1ff",
     marginTop: 12,
   },
+
+  // Cards
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -276,25 +200,34 @@ const styles = StyleSheet.create({
   card: {
     width: 160,
     margin: 8,
-    backgroundColor: "rgba(255,255,255,0.8)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: "600",
+    color: "#fff",
+    marginTop: 8,
     textAlign: "center",
   },
   cardDesc: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 13,
+    color: "#9aa1ff",
     textAlign: "center",
+    marginTop: 4,
   },
-  stepNumber: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#6b46c1",
-    textAlign: "center",
-    marginBottom: 4,
+
+  // Buttons
+  startBtn: {
+    marginTop: 16,
+    backgroundColor: "#2f7dfe",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
+  startBtnTxt: { color: "#fff", fontWeight: "700" },
+
+  // Images & Footer
   image: {
     width: "100%",
     height: 200,
@@ -305,5 +238,31 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.05)",
   },
+
+  // Reuse of your dark style theme tokens (for expansion)
+  tabTxt: { color: "#9aa1ff", fontWeight: "600" },
+  tabTxtActive: { color: "#fff" },
+  catChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  fab: {
+    position: "absolute",
+    right: 18,
+    bottom: 22,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#4a6dff",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: Platform.OS === "android" ? 6 : 0,
+  },
+  fabTxt: { color: "#fff", fontSize: 32, lineHeight: 34 },
 });
